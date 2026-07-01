@@ -30,9 +30,9 @@ export type StatsBase = {
 };
 
 function badgeDeScore(score: number) {
-  if (score >= 70) return { label: "HOT", color: "error" as const };
-  if (score >= 40) return { label: "WARM", color: "warning" as const };
-  return { label: "COLD", color: "success" as const };
+  if (score <= 40) return { label: String(score), color: "info" as const };
+  if (score >= 70) return { label: String(score), color: "error" as const };
+  return { label: String(score), color: "warning" as const };
 }
 
 function slugify(texto: string) {
