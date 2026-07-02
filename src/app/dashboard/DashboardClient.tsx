@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
@@ -15,7 +15,8 @@ import PhoneIcon from "@mui/icons-material/Phone";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import StarIcon from "@mui/icons-material/Star";
 import LanguageOffIcon from "@mui/icons-material/LanguageOutlined";
-import type { User } from "@supabase/supabase-js";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
+import type { RealtimeChannel, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, NegocioListado } from "@/lib/types";
 
@@ -30,9 +31,8 @@ export type StatsBase = {
 };
 
 function badgeDeScore(score: number) {
-  if (score <= 40) return { label: String(score), color: "info" as const };
-  if (score >= 70) return { label: String(score), color: "error" as const };
-  return { label: String(score), color: "warning" as const };
+  if (score >= 86) return { label: "Oportunidad ideal", color: "success" as const };
+  return { label: "Explorar", color: "warning" as const };
 }
 
 function slugify(texto: string) {
@@ -75,6 +75,15 @@ export default function DashboardClient({
   const [progreso, setProgreso] = useState({ hechos: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        createClient().removeChannel(channelRef.current);
+      }
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const sinWebEnSesion = leads.filter((l) => !l.tiene_web).length;
@@ -115,6 +124,57 @@ export default function DashboardClient({
 
       setProgreso({ hechos: 0, total: negocios.length });
 
+      const supabase = createClient();
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+
+      // Sin esto, el socket de Realtime puede autenticarse como anónimo si
+      // se conecta antes de que la sesión termine de sincronizar, y el RLS
+      // de "leads" filtra todos los broadcasts sin avisar.
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        supabase.realtime.setAuth(session.access_token);
+      }
+
+      // Supabase Realtime empuja cada lead a medida que se inserta en la DB
+      // (sin esto, solo veríamos los resultados recién al final de cada
+      // request — con Realtime aparecen en vivo aunque el batching lo haga
+      // otra pestaña o, más adelante, un cron). Importante: hay que esperar
+      // a que el canal quede "SUBSCRIBED" antes de disparar los inserts —
+      // si no, el primer lote (que puede insertarse en el mismo instante
+      // que el handshake del websocket) se pierde, porque Realtime no
+      // reenvía eventos ocurridos antes de la suscripción.
+      await new Promise<void>((resolve, reject) => {
+        channelRef.current = supabase
+          .channel(`leads-${searchId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "leads",
+              filter: `search_id=eq.${searchId}`,
+            },
+            (payload) => {
+              const nuevoLead = payload.new as Lead;
+              setLeads((prev) =>
+                prev.some((l) => l.id === nuevoLead.id)
+                  ? prev
+                  : [...prev, nuevoLead],
+              );
+            },
+          )
+          .subscribe((status) => {
+            if (status === "SUBSCRIBED") resolve();
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              reject(new Error("No se pudo conectar a Supabase Realtime"));
+            }
+          });
+      });
+
       for (let i = 0; i < negocios.length; i += TAMANO_LOTE) {
         const lote = negocios.slice(i, i + TAMANO_LOTE);
         const resLote = await fetch("/api/leads/analizar", {
@@ -128,14 +188,9 @@ export default function DashboardClient({
           throw new Error(mensaje ?? "Error analizando un lote de negocios");
         }
 
-        const { leads: nuevosLeads } = (await resLote.json()) as {
-          leads: Lead[];
-        };
-        setLeads((prev) => [...prev, ...nuevosLeads]);
         setProgreso((prev) => ({ ...prev, hechos: prev.hechos + lote.length }));
       }
 
-      const supabase = createClient();
       const { error: updateError } = await supabase
         .from("searches")
         .update({ estado: "completa" })
@@ -250,7 +305,13 @@ export default function DashboardClient({
                         {lead.rubro} · {lead.ciudad}
                       </Typography>
                     </Box>
-                    <Chip label={badge.label} color={badge.color} size="small" />
+                    <Chip
+                      icon={<FiberManualRecordIcon sx={{ fontSize: "8px !important" }} />}
+                      label={badge.label}
+                      color={badge.color}
+                      size="small"
+                      variant="outlined"
+                    />
                   </Stack>
 
                   <Stack
