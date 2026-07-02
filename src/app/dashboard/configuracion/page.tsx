@@ -34,7 +34,7 @@ export default async function ConfiguracionPage() {
   const plan = profile?.plan ?? "free";
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto" }}>
+    <Box sx={{ width: "90%", mx: "auto" }}>
       <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
         Configuración
       </Typography>

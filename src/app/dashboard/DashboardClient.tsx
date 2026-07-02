@@ -85,6 +85,11 @@ export default function DashboardClient({
     };
   }, []);
 
+  const leadsOrdenados = useMemo(
+    () => [...leads].sort((a, b) => b.score - a.score),
+    [leads],
+  );
+
   const stats = useMemo(() => {
     const sinWebEnSesion = leads.filter((l) => !l.tiene_web).length;
     const contactablesEnSesion = leads.filter((l) => l.telefono).length;
@@ -206,7 +211,7 @@ export default function DashboardClient({
   }
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+    <Box sx={{ width: "90%", mx: "auto" }}>
       <Typography variant="body2" color="text.secondary">
         Hola, {user.email}
       </Typography>
@@ -273,10 +278,10 @@ export default function DashboardClient({
         </Box>
       )}
 
-      {leads.length > 0 && (
+      {leadsOrdenados.length > 0 && (
         <>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            {leads.length} oportunidades de venta
+            {leadsOrdenados.length} oportunidades de venta
           </Typography>
           <Box
             sx={{
@@ -285,7 +290,7 @@ export default function DashboardClient({
               gap: 2,
             }}
           >
-            {leads.map((lead, i) => {
+            {leadsOrdenados.map((lead, i) => {
               const badge = badgeDeScore(lead.score);
               const mensaje = mensajeApertura(lead);
               return (
@@ -311,6 +316,11 @@ export default function DashboardClient({
                       color={badge.color}
                       size="small"
                       variant="outlined"
+                      sx={{
+                        px: 0.75,
+                        "& .MuiChip-icon": { ml: 0.5 },
+                        "& .MuiChip-label": { pl: 0.75, pr: 0.5 },
+                      }}
                     />
                   </Stack>
 
@@ -361,6 +371,7 @@ export default function DashboardClient({
                       rel="noopener noreferrer"
                       variant="contained"
                       color="success"
+                      sx={{ color: "#fff" }}
                     >
                       WhatsApp
                     </Button>

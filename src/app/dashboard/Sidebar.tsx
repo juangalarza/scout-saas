@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
@@ -12,6 +13,10 @@ import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
 import LinearProgress from "@mui/material/LinearProgress";
 import Tooltip from "@mui/material/Tooltip";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
@@ -20,6 +25,9 @@ import SlideshowOutlinedIcon from "@mui/icons-material/SlideshowOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SearchIcon from "@mui/icons-material/Search";
+import DiamondIcon from "@mui/icons-material/Diamond";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
+import { logout } from "./actions";
 
 export const SIDEBAR_WIDTH = 264;
 export const SIDEBAR_WIDTH_COLLAPSED = 84;
@@ -70,6 +78,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const porcentaje = limite > 0 ? Math.min((usadas / limite) * 100, 100) : 0;
+  const [upgradeAbierto, setUpgradeAbierto] = useState(false);
 
   return (
     <Paper
@@ -230,7 +239,51 @@ export default function Sidebar({
             <Typography variant="body2">Configuración</Typography>
           )}
         </Stack>
+
+        <Button
+          onClick={() => setUpgradeAbierto(true)}
+          variant="contained"
+          startIcon={!colapsado ? <DiamondIcon /> : undefined}
+          sx={{
+            mt: 0.5,
+            minWidth: 0,
+            bgcolor: "#F5A623",
+            color: "#1A1200",
+            fontWeight: 700,
+            "&:hover": { bgcolor: "#FFC15C" },
+          }}
+        >
+          {colapsado ? <DiamondIcon fontSize="small" /> : "Upgrade"}
+        </Button>
+
+        <Box component="form" action={logout}>
+          <Button
+            type="submit"
+            fullWidth
+            startIcon={!colapsado ? <LogoutOutlinedIcon /> : undefined}
+            sx={{
+              justifyContent: colapsado ? "center" : "flex-start",
+              minWidth: 0,
+              color: "text.secondary",
+            }}
+          >
+            {colapsado ? <LogoutOutlinedIcon fontSize="small" /> : "Cerrar sesión"}
+          </Button>
+        </Box>
       </Stack>
+
+      <Dialog open={upgradeAbierto} onClose={() => setUpgradeAbierto(false)}>
+        <DialogTitle>Los planes pagos llegan pronto</DialogTitle>
+        <DialogContent>
+          <Typography>
+            El checkout de Mercado Pago (planes Go y Pro) se conecta en la
+            Fase 7 del roadmap. Por ahora estás en el plan Free.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUpgradeAbierto(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
