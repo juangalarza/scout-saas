@@ -25,6 +25,7 @@ import type { RealtimeChannel, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, NegocioListado } from "@/lib/types";
 import { NICHOS, NICHO_MANUAL } from "@/lib/scout/nichos";
+import { useUpgradeDialog } from "./UpgradeDialogContext";
 
 const TAMANO_LOTE = 8;
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
@@ -87,6 +88,7 @@ export default function DashboardClient({
   const router = useRouter();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { abrirUpgrade } = useUpgradeDialog();
 
   useEffect(() => {
     return () => {
@@ -157,6 +159,11 @@ export default function DashboardClient({
       return;
     }
 
+    if (statsBase.busquedasUsadas >= statsBase.busquedasLimite) {
+      abrirUpgrade();
+      return;
+    }
+
     setLeads([]);
     setBuscando(true);
     setProgreso({ hechos: 0, total: 0 });
@@ -169,7 +176,12 @@ export default function DashboardClient({
       });
 
       if (!resSearch.ok) {
-        const { error: mensaje } = await resSearch.json();
+        const { error: mensaje, limiteAlcanzado } = await resSearch.json();
+        if (limiteAlcanzado) {
+          abrirUpgrade();
+          setBuscando(false);
+          return;
+        }
         throw new Error(mensaje ?? "No se pudo iniciar la búsqueda");
       }
 

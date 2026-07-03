@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buscarNegocios } from "@/lib/scout/places";
+import { contarBusquedasUsadas, limiteDelPlan } from "@/lib/planes";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -18,6 +19,26 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Ciudad y rubro son obligatorios" },
       { status: 400 },
+    );
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .single();
+
+  const plan = profile?.plan ?? "free";
+  const limite = limiteDelPlan(plan);
+  const usadas = await contarBusquedasUsadas(supabase, user.id, plan);
+
+  if (usadas >= limite) {
+    return NextResponse.json(
+      {
+        error: "Alcanzaste el límite de búsquedas de tu plan",
+        limiteAlcanzado: true,
+      },
+      { status: 403 },
     );
   }
 

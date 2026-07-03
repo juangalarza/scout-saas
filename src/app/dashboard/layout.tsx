@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { contarBusquedasUsadas, limiteDelPlan } from "@/lib/planes";
 import DashboardShell from "./DashboardShell";
-
-const LIMITES: Record<string, number> = { free: 3, go: 100, pro: 250 };
 
 export default async function DashboardLayout({
   children,
@@ -25,27 +24,14 @@ export default async function DashboardLayout({
     .single();
 
   const plan = profile?.plan ?? "free";
-  const limite = LIMITES[plan] ?? LIMITES.free;
-
-  let query = supabase
-    .from("searches")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  if (plan !== "free") {
-    const primerDiaDelMes = new Date();
-    primerDiaDelMes.setDate(1);
-    primerDiaDelMes.setHours(0, 0, 0, 0);
-    query = query.gte("created_at", primerDiaDelMes.toISOString());
-  }
-
-  const { count } = await query;
+  const limite = limiteDelPlan(plan);
+  const usadas = await contarBusquedasUsadas(supabase, user.id, plan);
 
   return (
     <DashboardShell
       email={user.email ?? ""}
       plan={plan}
-      usadas={count ?? 0}
+      usadas={usadas}
       limite={limite}
     >
       {children}

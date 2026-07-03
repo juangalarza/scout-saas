@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Box from "@mui/material/Box";
@@ -13,10 +12,6 @@ import IconButton from "@mui/material/IconButton";
 import Button from "@mui/material/Button";
 import LinearProgress from "@mui/material/LinearProgress";
 import Tooltip from "@mui/material/Tooltip";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
@@ -28,6 +23,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import DiamondIcon from "@mui/icons-material/Diamond";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { logout } from "./actions";
+import { useUpgradeDialog } from "./UpgradeDialogContext";
 
 export const SIDEBAR_WIDTH = 264;
 export const SIDEBAR_WIDTH_COLLAPSED = 84;
@@ -78,7 +74,7 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const porcentaje = limite > 0 ? Math.min((usadas / limite) * 100, 100) : 0;
-  const [upgradeAbierto, setUpgradeAbierto] = useState(false);
+  const { abrirUpgrade } = useUpgradeDialog();
 
   return (
     <Paper
@@ -241,7 +237,7 @@ export default function Sidebar({
         </Stack>
 
         <Button
-          onClick={() => setUpgradeAbierto(true)}
+          onClick={abrirUpgrade}
           variant="contained"
           startIcon={!colapsado ? <DiamondIcon /> : undefined}
           sx={{
@@ -271,19 +267,6 @@ export default function Sidebar({
           </Button>
         </Box>
       </Stack>
-
-      <Dialog open={upgradeAbierto} onClose={() => setUpgradeAbierto(false)}>
-        <DialogTitle>Los planes pagos llegan pronto</DialogTitle>
-        <DialogContent>
-          <Typography>
-            El checkout de Mercado Pago (planes Go y Pro) se conecta en la
-            Fase 7 del roadmap. Por ahora estás en el plan Free.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUpgradeAbierto(false)}>Cerrar</Button>
-        </DialogActions>
-      </Dialog>
     </Paper>
   );
 }
