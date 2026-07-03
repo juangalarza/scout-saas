@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import TextField from "@mui/material/TextField";
+import Autocomplete from "@mui/material/Autocomplete";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
+import FormControl from "@mui/material/FormControl";
 import Stack from "@mui/material/Stack";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -19,8 +24,10 @@ import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import type { RealtimeChannel, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Lead, NegocioListado } from "@/lib/types";
+import { NICHOS, NICHO_MANUAL } from "@/lib/scout/nichos";
 
 const TAMANO_LOTE = 8;
+const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 
 export type StatsBase = {
   sinWeb: number;
@@ -68,14 +75,18 @@ export default function DashboardClient({
   user: User;
   statsBase: StatsBase;
 }) {
+  const [nicho, setNicho] = useState("");
+  const [nichoManual, setNichoManual] = useState("");
   const [ciudad, setCiudad] = useState("");
-  const [rubro, setRubro] = useState("");
+  const [ciudadInput, setCiudadInput] = useState("");
+  const [opcionesCiudad, setOpcionesCiudad] = useState<string[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [progreso, setProgreso] = useState({ hechos: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -84,6 +95,36 @@ export default function DashboardClient({
       }
     };
   }, []);
+
+  // Autocompletado de ciudad (mismo patrón que Huntly): a medida que se
+  // escribe, se piden sugerencias reales a Google Places con debounce para
+  // no disparar un request por cada letra.
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (ciudadInput.trim().length < 2) {
+      setOpcionesCiudad([]);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/lugares/autocomplete?input=${encodeURIComponent(ciudadInput)}`,
+        );
+        if (res.ok) {
+          const { sugerencias } = await res.json();
+          setOpcionesCiudad(sugerencias ?? []);
+        }
+      } catch {
+        // El autocompletado es un plus, no debe bloquear la búsqueda si falla.
+      }
+    }, AUTOCOMPLETE_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [ciudadInput]);
 
   const leadsOrdenados = useMemo(
     () => [...leads].sort((a, b) => b.score - a.score),
@@ -101,9 +142,21 @@ export default function DashboardClient({
     };
   }, [leads, statsBase]);
 
+  const rubro = nicho === NICHO_MANUAL ? nichoManual.trim() : nicho;
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    if (!rubro) {
+      setError(
+        nicho === NICHO_MANUAL
+          ? "Escribí el rubro que querés buscar"
+          : "Elegí un rubro",
+      );
+      return;
+    }
+
     setLeads([]);
     setBuscando(true);
     setProgreso({ hechos: 0, total: 0 });
@@ -231,31 +284,62 @@ export default function DashboardClient({
           Descubrir clientes
         </Typography>
         <Box component="form" onSubmit={handleSubmit}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <TextField
-              label="Rubro"
-              placeholder="dentista, barbería, taller..."
-              value={rubro}
-              onChange={(e) => setRubro(e.target.value)}
-              required
-              fullWidth
-            />
-            <TextField
-              label="Ciudad"
-              placeholder="Córdoba, Rosario..."
-              value={ciudad}
-              onChange={(e) => setCiudad(e.target.value)}
-              required
-              fullWidth
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={buscando}
-              sx={{ minWidth: 160 }}
-            >
-              {buscando ? "Buscando..." : "Buscar leads"}
-            </Button>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <FormControl fullWidth required>
+                <InputLabel id="nicho-label">Rubro</InputLabel>
+                <Select
+                  labelId="nicho-label"
+                  label="Rubro"
+                  value={nicho}
+                  onChange={(e) => setNicho(e.target.value)}
+                >
+                  {NICHOS.map((n) => (
+                    <MenuItem key={n.value} value={n.value}>
+                      {n.label}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value={NICHO_MANUAL}>✍️ Escribir manualmente</MenuItem>
+                </Select>
+              </FormControl>
+              <Autocomplete
+                freeSolo
+                fullWidth
+                options={opcionesCiudad}
+                inputValue={ciudadInput}
+                onInputChange={(_, value) => {
+                  setCiudadInput(value);
+                  setCiudad(value);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Ciudad"
+                    placeholder="Córdoba, Rosario..."
+                    required
+                  />
+                )}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={buscando}
+                sx={{ minWidth: 160 }}
+              >
+                {buscando ? "Buscando..." : "Buscar leads"}
+              </Button>
+            </Stack>
+
+            {nicho === NICHO_MANUAL && (
+              <TextField
+                label="Rubro (escribilo)"
+                placeholder="dentista, barbería, taller..."
+                value={nichoManual}
+                onChange={(e) => setNichoManual(e.target.value)}
+                required
+                fullWidth
+              />
+            )}
           </Stack>
         </Box>
       </Paper>
