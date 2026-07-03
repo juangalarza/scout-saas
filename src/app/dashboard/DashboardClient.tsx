@@ -293,6 +293,9 @@ export default function DashboardClient({
                   label="Rubro"
                   value={nicho}
                   onChange={(e) => setNicho(e.target.value)}
+                  MenuProps={{
+                    slotProps: { paper: { sx: { maxHeight: 7 * 36 + 16 } } },
+                  }}
                 >
                   {NICHOS.map((n) => (
                     <MenuItem key={n.value} value={n.value}>
