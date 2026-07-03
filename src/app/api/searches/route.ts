@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generarNegociosMock } from "@/lib/mock-scout";
+import { buscarNegocios } from "@/lib/scout/places";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -31,9 +31,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // TODO Fase 5: reemplazar por la llamada real a SerpAPI (solo listado,
-  // sin análisis todavía) usando el script de SCOUT.
-  const negocios = generarNegociosMock(rubro, ciudad);
+  let negocios;
+  try {
+    negocios = await buscarNegocios(rubro, ciudad);
+  } catch (err) {
+    const mensaje = err instanceof Error ? err.message : "Error buscando negocios";
+    return NextResponse.json({ error: mensaje }, { status: 502 });
+  }
 
   return NextResponse.json({ searchId: search.id, negocios });
 }
