@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buscarNegocios } from "@/lib/scout/places";
-import { contarBusquedasUsadas, limiteDelPlan } from "@/lib/planes";
+import { contarBusquedasUsadas, limiteDelPlan, obtenerPlanVigente } from "@/lib/planes";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -22,13 +22,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
-    .single();
-
-  const plan = profile?.plan ?? "free";
+  const { plan } = await obtenerPlanVigente(supabase, user.id);
   const limite = limiteDelPlan(plan);
   const usadas = await contarBusquedasUsadas(supabase, user.id, plan);
 

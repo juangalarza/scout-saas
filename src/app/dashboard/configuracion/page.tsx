@@ -8,6 +8,7 @@ import Avatar from "@mui/material/Avatar";
 import Chip from "@mui/material/Chip";
 import Button from "@mui/material/Button";
 import { createClient } from "@/lib/supabase/server";
+import { obtenerPlanVigente } from "@/lib/planes";
 import { logout } from "../actions";
 
 const PLAN_LABEL: Record<string, string> = {
@@ -26,13 +27,7 @@ export default async function ConfiguracionPage() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
-    .single();
-
-  const plan = profile?.plan ?? "free";
+  const { plan, expiraEn } = await obtenerPlanVigente(supabase, user.id);
 
   return (
     <Box sx={{ width: "90%", mx: "auto" }}>
@@ -66,12 +61,25 @@ export default async function ConfiguracionPage() {
         <Typography variant="overline" color="text.secondary">
           Plan
         </Typography>
-        <Typography sx={{ mt: 1, mb: 2 }}>
+        <Typography sx={{ mt: 1, mb: expiraEn ? 0.5 : 2 }}>
           Estás en el plan <strong>{PLAN_LABEL[plan] ?? plan}</strong>.
         </Typography>
-        <Button component={Link} href="/dashboard/pricing" variant="outlined">
-          {plan === "free" ? "Ver planes pagos" : "Cambiar de plan"}
-        </Button>
+        {expiraEn && (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Vence el{" "}
+            {new Date(expiraEn).toLocaleDateString("es-AR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}
+            .
+          </Typography>
+        )}
+        <Link href="/dashboard/pricing" style={{ textDecoration: "none" }}>
+          <Button variant="outlined">
+            {plan === "free" ? "Ver planes pagos" : "Renovar / cambiar de plan"}
+          </Button>
+        </Link>
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>

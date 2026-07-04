@@ -46,9 +46,11 @@ const PLANES = [
 
 export default function PricingClient({
   planActual,
+  expiraEn,
   arsPorUsd,
 }: {
   planActual: string;
+  expiraEn: string | null;
   arsPorUsd: number | null;
 }) {
   const [cargando, setCargando] = useState<PlanPago | null>(null);
@@ -58,7 +60,7 @@ export default function PricingClient({
     setError(null);
     setCargando(plan);
     try {
-      const res = await fetch("/api/mercadopago/crear-suscripcion", {
+      const res = await fetch("/api/mercadopago/crear-pago", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
@@ -81,12 +83,25 @@ export default function PricingClient({
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 1 }}>
         Precios en USD, se cobran en ARS al tipo de cambio oficial del día vía
-        Mercado Pago.
+        Mercado Pago. Es un pago único que activa el plan por 30 días — no es
+        débito automático, así que para seguir en el plan pago hay que volver
+        a pagar acá cuando venza.
       </Typography>
       {arsPorUsd && (
         <Typography variant="caption" color="text.secondary">
           Hoy: 1 USD ≈ ${arsPorUsd.toLocaleString("es-AR")} ARS
         </Typography>
+      )}
+      {planActual !== "free" && expiraEn && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Tu plan vence el{" "}
+          {new Date(expiraEn).toLocaleDateString("es-AR", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+          . Volvé a pagar antes de esa fecha para no perder el acceso.
+        </Alert>
       )}
 
       {error && (
@@ -120,7 +135,7 @@ export default function PricingClient({
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
                 {p.precio}
                 <Typography component="span" variant="body2" color="text.secondary">
-                  {p.id !== "free" ? " / mes" : ""}
+                  {p.id !== "free" ? " / 30 días" : ""}
                 </Typography>
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -144,13 +159,13 @@ export default function PricingClient({
                 <Button
                   variant="contained"
                   fullWidth
-                  disabled={esActual || cargando !== null}
+                  disabled={cargando !== null}
                   onClick={() => elegirPlan(p.id as PlanPago)}
                 >
-                  {esActual
-                    ? "Tu plan actual"
-                    : cargando === p.id
-                      ? "Redirigiendo a Mercado Pago..."
+                  {cargando === p.id
+                    ? "Redirigiendo a Mercado Pago..."
+                    : esActual
+                      ? `Renovar ${p.label}`
                       : `Elegir ${p.label}`}
                 </Button>
               )}

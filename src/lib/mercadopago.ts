@@ -22,7 +22,11 @@ function emailSinTagMasParaMp(email: string): string {
   return email.replace(/\+[^@]*@/, "@");
 }
 
-export async function crearSuscripcion({
+// Pago único (Checkout Pro / Preferences), NO suscripción de Mercado Pago:
+// el usuario paga una vez y el plan queda activo 30 días (ver
+// src/lib/planes.ts). Sin débito automático ni tarjeta guardada — para
+// seguir en el plan pago, vuelve a pagar el mes siguiente desde /pricing.
+export async function crearPago({
   userId,
   plan,
   email,
@@ -32,32 +36,37 @@ export async function crearSuscripcion({
   plan: PlanPago;
   email: string;
   appUrl: string;
-}): Promise<{ initPoint: string; preapprovalId: string; montoArs: number }> {
+}): Promise<{ initPoint: string; preferenceId: string; montoArs: number }> {
   const { precioUsd, label } = PLANES_PAGOS[plan];
   const arsPorUsd = await arsPorUsdOficial();
   const montoArs = Math.round(precioUsd * arsPorUsd * 100) / 100;
 
-  const res = await fetch(`${MP_API_URL}/preapproval`, {
+  const res = await fetch(`${MP_API_URL}/checkout/preferences`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken()}`,
     },
     body: JSON.stringify({
-      reason: `Scout - Plan ${label}`,
+      items: [
+        {
+          title: `Scout - Plan ${label} (30 días)`,
+          quantity: 1,
+          unit_price: montoArs,
+          currency_id: "ARS",
+        },
+      ],
+      payer: { email: emailSinTagMasParaMp(email) },
       // "userId:plan" — el webhook lo usa para saber a quién y a qué plan
-      // actualizar sin tener que buscar la suscripción por otro medio.
+      // activar sin tener que buscar el pago por otro medio.
       external_reference: `${userId}:${plan}`,
-      payer_email: emailSinTagMasParaMp(email),
-      back_url: `${appUrl}/dashboard/configuracion`,
-      notification_url: `${appUrl}/api/mercadopago/webhook`,
-      auto_recurring: {
-        frequency: 1,
-        frequency_type: "months",
-        transaction_amount: montoArs,
-        currency_id: "ARS",
+      back_urls: {
+        success: `${appUrl}/dashboard/configuracion`,
+        failure: `${appUrl}/dashboard/pricing`,
+        pending: `${appUrl}/dashboard/configuracion`,
       },
-      status: "pending",
+      auto_return: "approved",
+      notification_url: `${appUrl}/api/mercadopago/webhook`,
     }),
   });
 
@@ -69,22 +78,20 @@ export async function crearSuscripcion({
     throw new Error("Mercado Pago no devolvió init_point/id en la respuesta");
   }
 
-  return { initPoint: data.init_point, preapprovalId: data.id, montoArs };
+  return { initPoint: data.init_point, preferenceId: data.id, montoArs };
 }
 
-export async function obtenerSuscripcion(preapprovalId: string): Promise<{
-  id: string;
+export async function obtenerPago(paymentId: string): Promise<{
+  id: number;
   status: string;
   external_reference?: string;
 }> {
-  const res = await fetch(`${MP_API_URL}/preapproval/${preapprovalId}`, {
+  const res = await fetch(`${MP_API_URL}/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${accessToken()}` },
   });
 
   if (!res.ok) {
-    throw new Error(
-      `No se pudo consultar la suscripción ${preapprovalId} (${res.status})`,
-    );
+    throw new Error(`No se pudo consultar el pago ${paymentId} (${res.status})`);
   }
 
   return res.json();

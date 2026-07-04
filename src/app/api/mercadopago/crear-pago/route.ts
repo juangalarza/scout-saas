@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { crearSuscripcion, esPlanPago } from "@/lib/mercadopago";
+import { crearPago, esPlanPago } from "@/lib/mercadopago";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const appUrl = new URL(request.url).origin;
 
   try {
-    const { initPoint } = await crearSuscripcion({
+    const { initPoint } = await crearPago({
       userId: user.id,
       plan,
       email: user.email,
@@ -29,8 +29,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ initPoint });
   } catch (err) {
-    const mensaje =
-      err instanceof Error ? err.message : "Error creando la suscripción";
+    const mensaje = err instanceof Error ? err.message : "Error creando el pago";
     return NextResponse.json({ error: mensaje }, { status: 502 });
   }
 }
