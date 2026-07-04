@@ -23,7 +23,6 @@ import SearchIcon from "@mui/icons-material/Search";
 import DiamondIcon from "@mui/icons-material/Diamond";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import { logout } from "./actions";
-import { useUpgradeDialog } from "./UpgradeDialogContext";
 
 export const SIDEBAR_WIDTH = 264;
 export const SIDEBAR_WIDTH_COLLAPSED = 84;
@@ -74,7 +73,6 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const porcentaje = limite > 0 ? Math.min((usadas / limite) * 100, 100) : 0;
-  const { abrirUpgrade } = useUpgradeDialog();
 
   return (
     <Paper
@@ -237,7 +235,8 @@ export default function Sidebar({
         </Stack>
 
         <Button
-          onClick={abrirUpgrade}
+          component={Link}
+          href="/dashboard/pricing"
           variant="contained"
           startIcon={!colapsado ? <DiamondIcon /> : undefined}
           sx={{

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Paper from "@mui/material/Paper";
@@ -65,12 +66,12 @@ export default async function ConfiguracionPage() {
         <Typography variant="overline" color="text.secondary">
           Plan
         </Typography>
-        <Typography sx={{ mt: 1 }}>
+        <Typography sx={{ mt: 1, mb: 2 }}>
           Estás en el plan <strong>{PLAN_LABEL[plan] ?? plan}</strong>.
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          El checkout de Mercado Pago se conecta en la Fase 7 del roadmap.
-        </Typography>
+        <Button component={Link} href="/dashboard/pricing" variant="outlined">
+          {plan === "free" ? "Ver planes pagos" : "Cambiar de plan"}
+        </Button>
       </Paper>
 
       <Paper variant="outlined" sx={{ p: 2.5 }}>

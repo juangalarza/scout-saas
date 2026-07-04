@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import Link from "next/link";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -12,9 +13,9 @@ const UpgradeDialogContext = createContext<{ abrirUpgrade: () => void } | null>(
   null,
 );
 
-// Un solo modal de Upgrade compartido: lo abre tanto el botón del sidebar
-// como el dashboard cuando se agotan los créditos del plan, para que el
-// mensaje sea siempre el mismo.
+// Modal que se abre cuando el dashboard se topa con el límite de búsquedas
+// del plan (DashboardClient). El botón "Upgrade" del sidebar ya no lo usa:
+// linkea directo a /dashboard/pricing.
 export function UpgradeDialogProvider({
   children,
 }: {
@@ -26,15 +27,23 @@ export function UpgradeDialogProvider({
     <UpgradeDialogContext.Provider value={{ abrirUpgrade: () => setAbierto(true) }}>
       {children}
       <Dialog open={abierto} onClose={() => setAbierto(false)}>
-        <DialogTitle>Los planes pagos llegan pronto</DialogTitle>
+        <DialogTitle>Se acabaron tus créditos</DialogTitle>
         <DialogContent>
           <Typography>
-            El checkout de Mercado Pago (planes Go y Pro) se conecta en la
-            Fase 7 del roadmap. Por ahora estás en el plan Free.
+            Ya usaste todas las búsquedas de tu plan. Elegí un plan pago para
+            seguir buscando clientes.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAbierto(false)}>Cerrar</Button>
+          <Button
+            component={Link}
+            href="/dashboard/pricing"
+            variant="contained"
+            onClick={() => setAbierto(false)}
+          >
+            Ver planes
+          </Button>
         </DialogActions>
       </Dialog>
     </UpgradeDialogContext.Provider>
