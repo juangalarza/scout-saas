@@ -12,6 +12,16 @@ function accessToken(): string {
   return token;
 }
 
+// La API de Mercado Pago devuelve 500 (Internal server error) cuando
+// payer_email tiene un alias tipo Gmail "+tag" (ej. usuario+tag@gmail.com),
+// sin importar el dominio. Confirmado con pruebas directas contra la API.
+// Como el propio MP ignora este campo de todos modos (siempre responde con
+// payer_email vacío y resuelve al comprador real en su checkout), sacar el
+// tag es seguro.
+function emailSinTagMasParaMp(email: string): string {
+  return email.replace(/\+[^@]*@/, "@");
+}
+
 export async function crearSuscripcion({
   userId,
   plan,
@@ -38,7 +48,7 @@ export async function crearSuscripcion({
       // "userId:plan" — el webhook lo usa para saber a quién y a qué plan
       // actualizar sin tener que buscar la suscripción por otro medio.
       external_reference: `${userId}:${plan}`,
-      payer_email: email,
+      payer_email: emailSinTagMasParaMp(email),
       back_url: `${appUrl}/dashboard/configuracion`,
       notification_url: `${appUrl}/api/mercadopago/webhook`,
       auto_recurring: {
@@ -51,9 +61,12 @@ export async function crearSuscripcion({
     }),
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(data?.message ?? `Mercado Pago respondió ${res.status}`);
+  }
+  if (!data?.init_point || !data?.id) {
+    throw new Error("Mercado Pago no devolvió init_point/id en la respuesta");
   }
 
   return { initPoint: data.init_point, preapprovalId: data.id, montoArs };
