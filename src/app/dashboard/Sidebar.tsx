@@ -46,7 +46,6 @@ const NAV_ITEMS: NavItem[] = [
     label: "Demos",
     href: "/dashboard/demos",
     icon: <SlideshowOutlinedIcon />,
-    locked: "Llega en la Fase 8 (demos con IA)",
   },
 ];
 

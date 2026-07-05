@@ -16,6 +16,11 @@ import Chip from "@mui/material/Chip";
 import Alert from "@mui/material/Alert";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogActions from "@mui/material/DialogActions";
 import PhoneIcon from "@mui/icons-material/Phone";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import StarIcon from "@mui/icons-material/Star";
@@ -41,15 +46,6 @@ export type StatsBase = {
 function badgeDeScore(score: number) {
   if (score >= 86) return { label: "Oportunidad ideal", color: "success" as const };
   return { label: "Explorar", color: "warning" as const };
-}
-
-function slugify(texto: string) {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
 }
 
 function mensajeApertura(lead: Lead) {
@@ -85,6 +81,8 @@ export default function DashboardClient({
   const [buscando, setBuscando] = useState(false);
   const [progreso, setProgreso] = useState({ hechos: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [demoCargando, setDemoCargando] = useState<string | null>(null);
+  const [leadParaConfirmarDemo, setLeadParaConfirmarDemo] = useState<Lead | null>(null);
   const router = useRouter();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,6 +143,30 @@ export default function DashboardClient({
   }, [leads, statsBase]);
 
   const rubro = nicho === NICHO_MANUAL ? nichoManual.trim() : nicho;
+
+  async function generarDemoConfirmada() {
+    const lead = leadParaConfirmarDemo;
+    if (!lead) return;
+    setLeadParaConfirmarDemo(null);
+    setDemoCargando(lead.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/demos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "No se pudo generar la demo");
+      }
+      window.open(`/demo/${data.slug}`, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo generar la demo");
+    } finally {
+      setDemoCargando(null);
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -484,10 +506,11 @@ export default function DashboardClient({
                     </Button>
                     <Button
                       size="small"
-                      href={`/demo/${slugify(lead.nombre)}-${lead.id.slice(0, 6)}`}
                       variant="text"
+                      disabled={demoCargando === lead.id}
+                      onClick={() => setLeadParaConfirmarDemo(lead)}
                     >
-                      Ver demo
+                      {demoCargando === lead.id ? "Generando…" : "Generar demo"}
                     </Button>
                   </Stack>
                 </Paper>
@@ -496,6 +519,24 @@ export default function DashboardClient({
           </Box>
         </>
       )}
+
+      <Dialog open={Boolean(leadParaConfirmarDemo)} onClose={() => setLeadParaConfirmarDemo(null)}>
+        <DialogTitle>¿El cliente ya dijo que quiere ver la demo?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Generar la demo de <strong>{leadParaConfirmarDemo?.nombre}</strong>{" "}
+            usa IA (Claude) para escribir el copy — hacelo solo si {leadParaConfirmarDemo?.nombre}{" "}
+            ya respondió que sí al mensaje de WhatsApp, para no gastar de más en
+            demos que capaz nadie ve.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeadParaConfirmarDemo(null)}>Todavía no</Button>
+          <Button variant="contained" onClick={generarDemoConfirmada}>
+            Sí, generar demo
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
