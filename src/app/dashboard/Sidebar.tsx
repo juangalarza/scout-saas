@@ -40,7 +40,6 @@ const NAV_ITEMS: NavItem[] = [
     label: "Mi Cartera",
     href: "/dashboard/cartera",
     icon: <WorkOutlineIcon />,
-    locked: "Llega en la Fase 9 (Kanban de leads)",
   },
   {
     label: "Demos",
