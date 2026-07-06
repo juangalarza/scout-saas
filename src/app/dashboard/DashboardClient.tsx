@@ -83,6 +83,8 @@ export default function DashboardClient({
   const [error, setError] = useState<string | null>(null);
   const [demoCargando, setDemoCargando] = useState<string | null>(null);
   const [leadParaConfirmarDemo, setLeadParaConfirmarDemo] = useState<Lead | null>(null);
+  const [mensajesIA, setMensajesIA] = useState<Record<string, string>>({});
+  const [mensajeIACargando, setMensajeIACargando] = useState<string | null>(null);
   const router = useRouter();
   const channelRef = useRef<RealtimeChannel | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -143,6 +145,23 @@ export default function DashboardClient({
   }, [leads, statsBase]);
 
   const rubro = nicho === NICHO_MANUAL ? nichoManual.trim() : nicho;
+
+  async function mejorarMensajeConIA(lead: Lead) {
+    setMensajeIACargando(lead.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/mensaje`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "No se pudo generar el mensaje");
+      }
+      setMensajesIA((prev) => ({ ...prev, [lead.id]: data.mensaje }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo generar el mensaje");
+    } finally {
+      setMensajeIACargando(null);
+    }
+  }
 
   async function generarDemoConfirmada() {
     const lead = leadParaConfirmarDemo;
@@ -413,7 +432,7 @@ export default function DashboardClient({
           >
             {leadsOrdenados.map((lead, i) => {
               const badge = badgeDeScore(lead.score);
-              const mensaje = mensajeApertura(lead);
+              const mensaje = mensajesIA[lead.id] ?? mensajeApertura(lead);
               return (
                 <Paper key={lead.id} variant="outlined" sx={{ p: 2.5 }}>
                   <Stack
@@ -471,13 +490,27 @@ export default function DashboardClient({
                     variant="outlined"
                     sx={{ p: 1.5, mb: 2, bgcolor: "background.default" }}
                   >
-                    <Typography
-                      variant="caption"
-                      color="primary.main"
-                      sx={{ fontWeight: 600 }}
+                    <Stack
+                      direction="row"
+                      sx={{ justifyContent: "space-between", alignItems: "center" }}
                     >
-                      MENSAJE DE APERTURA
-                    </Typography>
+                      <Typography
+                        variant="caption"
+                        color="primary.main"
+                        sx={{ fontWeight: 600 }}
+                      >
+                        MENSAJE DE APERTURA
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="text"
+                        disabled={mensajeIACargando === lead.id}
+                        onClick={() => mejorarMensajeConIA(lead)}
+                        sx={{ minWidth: 0, fontSize: "0.75rem" }}
+                      >
+                        {mensajeIACargando === lead.id ? "Generando…" : "✨ Mejorar con IA"}
+                      </Button>
+                    </Stack>
                     <Typography variant="body2" sx={{ mt: 0.5 }}>
                       {mensaje}
                     </Typography>

@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { generarTexto } from "@/lib/claude";
 
 export type CopyGenerado = {
   headline: string;
@@ -66,22 +66,6 @@ export async function generarCopy(datos: {
   cantidadReviews: number;
   reviews: string[];
 }): Promise<CopyGenerado> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("Falta configurar ANTHROPIC_API_KEY en el servidor");
-  }
-
-  const client = new Anthropic({ apiKey });
-  const respuesta = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
-    max_tokens: 500,
-    messages: [{ role: "user", content: prompt(datos) }],
-  });
-
-  const bloque = respuesta.content.find((b) => b.type === "text");
-  if (!bloque || bloque.type !== "text") {
-    throw new Error("Claude no devolvió texto");
-  }
-
-  return parsearJson(bloque.text);
+  const texto = await generarTexto(prompt(datos));
+  return parsearJson(texto);
 }
